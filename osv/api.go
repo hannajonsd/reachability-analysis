@@ -4,19 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
-type OSVRequest struct {
-	Package struct {
-		Name      string `json:"name"`
-		Ecosystem string `json:"ecosystem"`
-	} `json:"package"`
-	Version string `json:"version"`
-}
-
-func QueryOSV(pkgName string, version string, ecosystem string) (string, error) {
+func QueryOSV(pkgName string, version string, ecosystem string) ([]Advisory, error) {
 	req := OSVRequest{}
 	req.Package.Name = pkgName
 	req.Package.Ecosystem = ecosystem
@@ -24,23 +16,30 @@ func QueryOSV(pkgName string, version string, ecosystem string) (string, error) 
 
 	body, err := json.Marshal(req)
 	if err != nil {
-		return "", fmt.Errorf("error encoding request: %w", err)
+		return nil, fmt.Errorf("error encoding request: %w", err)
 	}
 
 	resp, err := http.Post("https://api.osv.dev/v1/query", "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		return "", fmt.Errorf("HTTP request error: %w", err)
+		return nil, fmt.Errorf("HTTP request error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("OSV API error: %s", resp.Status)
+		return nil, fmt.Errorf("OSV API error: %s", resp.Status)
 	}
 
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("error reading response: %w", err)
+		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
-	return string(respBody), nil
+	var result struct {
+		Vulns []Advisory `json:"vulns"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("error decoding JSON: %w", err)
+	}
+	return result.Vulns, nil
+
 }
