@@ -10,14 +10,25 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Vulnerability Reachability Analysis ===")
+	fmt.Println("=== Vulnerability Reachability Analysis with Tree-sitter ===")
 
 	packageName := "lodash"
 	packageVersion := "4.17.20"
 	ecosystem := "npm"
 	filePath := "testdata/example.js"
 
-	fmt.Println("\n1. Querying OSV API...")
+	analyzer := reachability.NewTreeSitterAnalyzer()
+
+	fmt.Println("\nAnalyzing file structure...")
+	result, err := analyzer.AnalyzeFileForVulnerabilities(filePath, packageName, []string{}) // Empty symbols for initial parse
+	if err != nil {
+		log.Printf("Failed to analyze file: %v", err)
+		return
+	}
+
+	displayImports(result)
+
+	fmt.Println("\nQuerying OSV API...")
 	advisories, err := osv.QueryOSV(packageName, packageVersion, ecosystem)
 	if err != nil {
 		log.Printf("Failed to query OSV: %v", err)
@@ -25,7 +36,7 @@ func main() {
 	}
 
 	fmt.Printf("Found %d advisories\n", len(advisories))
-	fmt.Println(strings.Repeat("-", 50))
+	fmt.Println(strings.Repeat("-", 60))
 
 	for i, adv := range advisories {
 		fmt.Printf("\nAdvisory %d: %s\n", i+1, adv.ID)
@@ -37,46 +48,51 @@ func main() {
 				allOSVSymbols = append(allOSVSymbols, imp.Symbols...)
 			}
 		}
-		extractedSymbols := osv.ExtractPossibleSymbols(packageName, adv.Summary, adv.Details)
 
+		extractedSymbols := osv.ExtractPossibleSymbols(packageName, adv.Summary, adv.Details)
 		allOSVSymbols = append(allOSVSymbols, extractedSymbols...)
 		uniqueOSVSymbols := reachability.DeduplicateSlice(allOSVSymbols)
 
 		fmt.Printf("OSV Symbols (%d): %v\n", len(uniqueOSVSymbols), uniqueOSVSymbols)
 
-		fmt.Println("\n2. Analyzing code with import detection...")
-
-		result, err := reachability.AnalyzeFileForVulnerabilities(filePath, packageName, uniqueOSVSymbols)
+		advisoryResult, err := analyzer.AnalyzeFileForVulnerabilities(filePath, packageName, uniqueOSVSymbols)
 		if err != nil {
-			log.Printf("Analysis failed: %v", err)
+			log.Printf("Analysis failed for advisory %s: %v", adv.ID, err)
 			continue
 		}
 
-		fmt.Printf("Detected Imports (%d):\n", len(result.Imports))
-		for _, imp := range result.Imports {
-			fmt.Printf("  - %s as '%s' \n", imp.PackageName, imp.Alias)
-		}
+		displayVulnerabilityResults(advisoryResult, packageName)
+		fmt.Println(strings.Repeat("-", 60))
+	}
+}
 
-		if len(result.PackageAliases) > 0 {
-			fmt.Printf("Package aliases for %s: %v\n", packageName, result.PackageAliases)
-		}
+func displayImports(result reachability.EnhancedAnalysisResult) {
+	fmt.Printf("Detected Imports (%d):\n", len(result.ImportDetails))
 
-		fmt.Printf("\nFunction Calls (%d):\n", len(result.FunctionCalls))
-		for _, call := range result.FunctionCalls {
-			fmt.Printf("  %s\n", call)
-		}
-
-		fmt.Println("\n3. Vulnerability Analysis:")
-		if len(result.VulnerableCalls) > 0 {
-			fmt.Printf("VULNERABLE CALLS DETECTED (%d):\n", len(result.VulnerableCalls))
-			for _, call := range result.VulnerableCalls {
-				fmt.Printf("  - %s\n", call)
-			}
+	for _, imp := range result.ImportDetails {
+		if len(imp.Symbols) > 0 {
+			fmt.Printf("  - %s as '%s' (destructured: %v)\n", imp.PackageName, imp.Alias, imp.Symbols)
 		} else {
-			fmt.Println("No vulnerable function calls detected for this advisory")
+			fmt.Printf("  - %s as '%s' (%s)\n", imp.PackageName, imp.Alias, imp.ImportType)
 		}
+	}
+}
 
-		fmt.Println(strings.Repeat("-", 50))
+func displayVulnerabilityResults(result reachability.EnhancedAnalysisResult, packageName string) {
+	fmt.Printf("Language: %s\n", result.Language)
+
+	if len(result.Basic.PackageAliases) > 0 {
+		fmt.Printf("\nPackage aliases for %s: %v\n", packageName, result.Basic.PackageAliases)
 	}
 
+	fmt.Println("\n3. Vulnerability Analysis:")
+	if len(result.Basic.VulnerableCalls) > 0 {
+		fmt.Printf("❌ VULNERABLE CALLS DETECTED (%d):\n", len(result.Basic.VulnerableCalls))
+		for _, call := range result.Basic.VulnerableCalls {
+			fmt.Printf("   %s\n", call)
+		}
+
+	} else {
+		fmt.Println("✅ No vulnerable function calls detected for this advisory")
+	}
 }
