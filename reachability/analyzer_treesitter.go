@@ -69,11 +69,14 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 
 	packageAliases := make(map[string]bool)
 	destructuredMethods := make(map[string]bool)
+	dotImportPackages := make(map[string]bool)
 
 	for _, imp := range imports {
-		if strings.EqualFold(imp.PackageName, targetPackage) || strings.HasPrefix(strings.ToLower(imp.PackageName), strings.ToLower(targetPackage)+".") {
+		if strings.EqualFold(imp.PackageName, targetPackage) || strings.HasPrefix(strings.ToLower(imp.PackageName), strings.ToLower(targetPackage)+"/") || strings.HasPrefix(strings.ToLower(imp.PackageName), strings.ToLower(targetPackage)+".") {
 			if imp.ImportType == "destructured" || imp.ImportType == "from_import" || imp.ImportType == "from_import_as" {
 				destructuredMethods[strings.ToLower(imp.Alias)] = true
+			} else if imp.Alias == "." {
+				dotImportPackages[imp.PackageName] = true
 			} else {
 				packageAliases[imp.Alias] = true
 			}
@@ -100,9 +103,21 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 				}
 			}
 		} else {
-			if destructuredMethods[strings.ToLower(call)] {
+			callLower := strings.ToLower(call)
+
+			if destructuredMethods[callLower] {
 				if osvMap != nil {
-					if osvMap[strings.ToLower(call)] {
+					if osvMap[callLower] {
+						isVulnerable = true
+					}
+				} else {
+					isVulnerable = true
+				}
+			}
+
+			if dotImportPackages[targetPackage] {
+				if osvMap != nil {
+					if osvMap[callLower] {
 						isVulnerable = true
 					}
 				} else {
@@ -117,11 +132,13 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 	}
 
 	if osvMap != nil && len(vulnerable) == 0 {
-		return a.findVulnerableCalls(nil, imports, calls, targetPackage)
-	}
+		vulnerable = a.findVulnerableCalls(nil, imports, calls, targetPackage)
 
-	if osvMap == nil && len(vulnerable) > 0 {
-		fmt.Println("Using package-level vulnerability detection (no specific symbols matched)")
+		if len(vulnerable) > 0 {
+			fmt.Println("Using package-level vulnerability detection (no specific symbols matched)")
+		}
+
+		return DeduplicateSlice(vulnerable)
 	}
 
 	return DeduplicateSlice(vulnerable)

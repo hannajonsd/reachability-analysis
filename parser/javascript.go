@@ -298,7 +298,7 @@ func (p *JavaScriptParser) processCall(node *sitter.Node, source []byte) string 
 
 		switch child.Type() {
 		case "identifier":
-			// Direct function call: foo()
+			// Direct function call: func()
 			return string(source[child.StartByte():child.EndByte()])
 		case "member_expression":
 			// Method call: obj.method()

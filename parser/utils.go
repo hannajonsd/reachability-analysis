@@ -19,8 +19,8 @@ func CreateParser(filePath string) (Parser, error) {
 		return NewJavaScriptParser()
 	case ".py":
 		return NewPythonParser()
-	// case ".go":
-	// 	return NewGoParser()
+	case ".go":
+		return NewGoParser()
 	default:
 		return nil, fmt.Errorf("unsupported file type: %s", ext)
 	}

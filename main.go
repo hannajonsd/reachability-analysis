@@ -16,10 +16,14 @@ func main() {
 	// packageVersion := "4.17.20"
 	// ecosystem := "npm"
 	// filePath := "testdata/example.js"
-	filePath := "testdata/example.py"
-	packageName := "requests"
-	ecosystem := "PyPI"
-	packageVersion := "2.30.0"
+	// filePath := "testdata/example.py"
+	// packageName := "requests"
+	// ecosystem := "PyPI"
+	// packageVersion := "2.30.0"
+	filePath := "testdata/example.go"
+	packageName := "golang.org/x/text"
+	ecosystem := "Go"
+	packageVersion := "0.3.7"
 
 	analyzer := reachability.NewTreeSitterAnalyzer()
 
