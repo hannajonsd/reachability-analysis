@@ -2,6 +2,7 @@
 package reachability
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/hannajonsd/reachability-analysis/parser"
@@ -58,17 +59,20 @@ func (a *TreeSitterAnalyzer) AnalyzeFileForVulnerabilities(filePath string, targ
 func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []parser.PackageImport, calls []string, targetPackage string) []string {
 	var vulnerable []string
 
-	osvMap := make(map[string]bool)
-	for _, sym := range osvSymbols {
-		osvMap[strings.ToLower(sym)] = true
+	var osvMap map[string]bool
+	if len(osvSymbols) > 0 {
+		osvMap = make(map[string]bool)
+		for _, sym := range osvSymbols {
+			osvMap[strings.ToLower(sym)] = true
+		}
 	}
 
 	packageAliases := make(map[string]bool)
 	destructuredMethods := make(map[string]bool)
 
 	for _, imp := range imports {
-		if strings.EqualFold(imp.PackageName, targetPackage) {
-			if imp.ImportType == "destructured" {
+		if strings.EqualFold(imp.PackageName, targetPackage) || strings.HasPrefix(strings.ToLower(imp.PackageName), strings.ToLower(targetPackage)+".") {
+			if imp.ImportType == "destructured" || imp.ImportType == "from_import" || imp.ImportType == "from_import_as" {
 				destructuredMethods[strings.ToLower(imp.Alias)] = true
 			} else {
 				packageAliases[imp.Alias] = true
@@ -77,66 +81,48 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 	}
 
 	for _, call := range calls {
+		isVulnerable := false
+
 		if strings.Contains(call, ".") {
 			parts := strings.Split(call, ".")
 			if len(parts) >= 2 {
 				object := parts[0]
 				methodName := strings.ToLower(parts[len(parts)-1])
 
-				if packageAliases[object] && osvMap[methodName] {
-					vulnerable = append(vulnerable, call)
+				if packageAliases[object] {
+					if osvMap != nil {
+						if osvMap[methodName] {
+							isVulnerable = true
+						}
+					} else {
+						isVulnerable = true
+					}
 				}
 			}
 		} else {
-			if destructuredMethods[strings.ToLower(call)] && osvMap[strings.ToLower(call)] {
-				vulnerable = append(vulnerable, call)
+			if destructuredMethods[strings.ToLower(call)] {
+				if osvMap != nil {
+					if osvMap[strings.ToLower(call)] {
+						isVulnerable = true
+					}
+				} else {
+					isVulnerable = true
+				}
 			}
 		}
+
+		if isVulnerable {
+			vulnerable = append(vulnerable, call)
+		}
+	}
+
+	if osvMap != nil && len(vulnerable) == 0 {
+		return a.findVulnerableCalls(nil, imports, calls, targetPackage)
+	}
+
+	if osvMap == nil && len(vulnerable) > 0 {
+		fmt.Println("Using package-level vulnerability detection (no specific symbols matched)")
 	}
 
 	return DeduplicateSlice(vulnerable)
-}
-
-func convertToLegacyImports(imports []parser.PackageImport) []PackageImport {
-	var legacy []PackageImport
-
-	for _, imp := range imports {
-		legacy = append(legacy, PackageImport{
-			PackageName: imp.PackageName,
-			Alias:       imp.Alias,
-			ImportType:  imp.ImportType,
-		})
-	}
-
-	return legacy
-}
-
-func getPackageAliasesFromImports(imports []parser.PackageImport, targetPackage string) []string {
-	var aliases []string
-	seen := make(map[string]bool)
-
-	for _, imp := range imports {
-		if strings.EqualFold(imp.PackageName, targetPackage) {
-			if !seen[imp.Alias] {
-				seen[imp.Alias] = true
-				aliases = append(aliases, imp.Alias)
-			}
-		}
-	}
-
-	return aliases
-}
-
-func DeduplicateSlice(slice []string) []string {
-	keys := make(map[string]bool)
-	var result []string
-
-	for _, item := range slice {
-		if !keys[item] {
-			keys[item] = true
-			result = append(result, item)
-		}
-	}
-
-	return result
 }

@@ -3,11 +3,17 @@ package parser
 import sitter "github.com/smacker/go-tree-sitter"
 
 type Parser interface {
+	GetLanguage() string
+	Close()
 	ParseFile(filePath string) (*ParseResult, error)
 	ExtractImports(node *sitter.Node, source []byte) ([]PackageImport, error)
 	ExtractCalls(node *sitter.Node, source []byte) ([]string, error)
-	GetLanguage() string
-	Close()
+}
+
+type BaseParser struct {
+	parser   *sitter.Parser
+	language *sitter.Language
+	langName string
 }
 
 type ParseResult struct {

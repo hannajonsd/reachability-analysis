@@ -12,15 +12,19 @@ import (
 func main() {
 	fmt.Println("=== Vulnerability Reachability Analysis with Tree-sitter ===")
 
-	packageName := "lodash"
-	packageVersion := "4.17.20"
-	ecosystem := "npm"
-	filePath := "testdata/example.js"
+	// packageName := "lodash"
+	// packageVersion := "4.17.20"
+	// ecosystem := "npm"
+	// filePath := "testdata/example.js"
+	filePath := "testdata/example.py"
+	packageName := "requests"
+	ecosystem := "PyPI"
+	packageVersion := "2.30.0"
 
 	analyzer := reachability.NewTreeSitterAnalyzer()
 
 	fmt.Println("\nAnalyzing file structure...")
-	result, err := analyzer.AnalyzeFileForVulnerabilities(filePath, packageName, []string{}) // Empty symbols for initial parse
+	result, err := analyzer.AnalyzeFileForVulnerabilities(filePath, packageName, []string{})
 	if err != nil {
 		log.Printf("Failed to analyze file: %v", err)
 		return
@@ -79,13 +83,11 @@ func displayImports(result reachability.EnhancedAnalysisResult) {
 }
 
 func displayVulnerabilityResults(result reachability.EnhancedAnalysisResult, packageName string) {
-	fmt.Printf("Language: %s\n", result.Language)
-
 	if len(result.Basic.PackageAliases) > 0 {
 		fmt.Printf("\nPackage aliases for %s: %v\n", packageName, result.Basic.PackageAliases)
 	}
 
-	fmt.Println("\n3. Vulnerability Analysis:")
+	fmt.Println("\nVulnerability Analysis:")
 	if len(result.Basic.VulnerableCalls) > 0 {
 		fmt.Printf("❌ VULNERABLE CALLS DETECTED (%d):\n", len(result.Basic.VulnerableCalls))
 		for _, call := range result.Basic.VulnerableCalls {

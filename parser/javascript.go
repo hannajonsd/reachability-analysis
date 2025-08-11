@@ -2,64 +2,41 @@
 package parser
 
 import (
-	"context"
 	"fmt"
-	"os"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/javascript"
 )
 
 type JavaScriptParser struct {
-	parser   *sitter.Parser
-	language *sitter.Language
+	BaseParser
 }
 
 func NewJavaScriptParser() (*JavaScriptParser, error) {
 	parser := sitter.NewParser()
 	language := javascript.GetLanguage()
-
 	parser.SetLanguage(language)
 
 	return &JavaScriptParser{
-		parser:   parser,
-		language: language,
+		BaseParser: BaseParser{
+			parser:   parser,
+			language: language,
+			langName: "javascript",
+		},
 	}, nil
-}
-
-func (p *JavaScriptParser) GetLanguage() string {
-	return "javascript"
 }
 
 func (p *JavaScriptParser) Close() {
 }
 
 func (p *JavaScriptParser) ParseFile(filePath string) (*ParseResult, error) {
-	source, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
-	}
-
-	tree, err := p.parser.ParseCtx(context.Background(), nil, source)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse file %s: %w", filePath, err)
-	}
-	if tree == nil {
-		return nil, fmt.Errorf("failed to parse file %s", filePath)
-	}
-
-	return &ParseResult{
-		Tree:     tree,
-		Source:   source,
-		Language: "javascript",
-		FilePath: filePath,
-	}, nil
+	return p.ParseFileGeneric(filePath)
 }
 
 func (p *JavaScriptParser) ExtractImports(node *sitter.Node, source []byte) ([]PackageImport, error) {
 	var imports []PackageImport
 
-	p.walkAST(node, source, func(n *sitter.Node) {
+	WalkAST(node, source, func(n *sitter.Node) {
 		switch n.Type() {
 		case "import_statement":
 			imp := p.processImportStatement(n, source)
@@ -74,7 +51,7 @@ func (p *JavaScriptParser) ExtractImports(node *sitter.Node, source []byte) ([]P
 		}
 	})
 
-	return deduplicateImports(imports), nil
+	return DeduplicateImports(imports), nil
 }
 
 func (p *JavaScriptParser) processImportStatement(node *sitter.Node, source []byte) *PackageImport {
@@ -88,7 +65,7 @@ func (p *JavaScriptParser) processImportStatement(node *sitter.Node, source []by
 		case "import_clause":
 			alias, symbols = p.processImportClause(child, source)
 		case "string":
-			packageName = p.extractStringValue(child, source)
+			packageName = ExtractStringValue(child, source)
 		}
 	}
 
@@ -294,36 +271,28 @@ func (p *JavaScriptParser) processArguments(node *sitter.Node, source []byte) st
 	for i := 0; i < int(node.ChildCount()); i++ {
 		child := node.Child(i)
 		if child.Type() == "string" {
-			return p.extractStringValue(child, source)
+			return ExtractStringValue(child, source)
 		}
 	}
 	return ""
 }
 
-func (p *JavaScriptParser) extractStringValue(node *sitter.Node, source []byte) string {
-	text := string(source[node.StartByte():node.EndByte()])
-	if len(text) >= 2 && (text[0] == '"' || text[0] == '\'') {
-		text = text[1 : len(text)-1]
-	}
-	return text
-}
-
 func (p *JavaScriptParser) ExtractCalls(node *sitter.Node, source []byte) ([]string, error) {
 	var calls []string
 
-	p.walkAST(node, source, func(n *sitter.Node) {
+	WalkAST(node, source, func(n *sitter.Node) {
 		if n.Type() == "call_expression" {
-			call := p.processCallExpressionForCalls(n, source)
+			call := p.processCall(n, source)
 			if call != "" {
 				calls = append(calls, call)
 			}
 		}
 	})
 
-	return deduplicateStrings(calls), nil
+	return DeduplicateStrings(calls), nil
 }
 
-func (p *JavaScriptParser) processCallExpressionForCalls(node *sitter.Node, source []byte) string {
+func (p *JavaScriptParser) processCall(node *sitter.Node, source []byte) string {
 	for i := 0; i < int(node.ChildCount()); i++ {
 		child := node.Child(i)
 
@@ -333,16 +302,16 @@ func (p *JavaScriptParser) processCallExpressionForCalls(node *sitter.Node, sour
 			return string(source[child.StartByte():child.EndByte()])
 		case "member_expression":
 			// Method call: obj.method()
-			return p.processMemberExpression(child, source)
+			return p.processAttribute(child, source)
 		}
 	}
 
 	return ""
 }
 
-func (p *JavaScriptParser) processMemberExpression(node *sitter.Node, source []byte) string {
-	// Extract object.property
-	var object, property string
+func (p *JavaScriptParser) processAttribute(node *sitter.Node, source []byte) string {
+	// Extract object.attribute
+	var object, attribute string
 
 	for i := 0; i < int(node.ChildCount()); i++ {
 		child := node.Child(i)
@@ -353,22 +322,13 @@ func (p *JavaScriptParser) processMemberExpression(node *sitter.Node, source []b
 				object = string(source[child.StartByte():child.EndByte()])
 			}
 		case "property_identifier":
-			property = string(source[child.StartByte():child.EndByte()])
+			attribute = string(source[child.StartByte():child.EndByte()])
 		}
 	}
 
-	if object != "" && property != "" {
-		return fmt.Sprintf("%s.%s", object, property)
+	if object != "" && attribute != "" {
+		return fmt.Sprintf("%s.%s", object, attribute)
 	}
 
 	return ""
-}
-
-func (p *JavaScriptParser) walkAST(node *sitter.Node, source []byte, visitor func(*sitter.Node)) {
-	visitor(node)
-
-	for i := 0; i < int(node.ChildCount()); i++ {
-		child := node.Child(i)
-		p.walkAST(child, source, visitor)
-	}
 }

@@ -19,7 +19,6 @@ type AnalysisResult struct {
 type EnhancedAnalysisResult struct {
 	Basic           AnalysisResult
 	ImportDetails   []parser.PackageImport
-	CallDetails     []CallDetail
 	Language        string
 	ParseSuccessful bool
 }
