@@ -2,7 +2,6 @@
 package reachability
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/hannajonsd/reachability-analysis/parser"
@@ -133,10 +132,6 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 
 	if osvMap != nil && len(vulnerable) == 0 {
 		vulnerable = a.findVulnerableCalls(nil, imports, calls, targetPackage)
-
-		if len(vulnerable) > 0 {
-			fmt.Println("Using package-level vulnerability detection (no specific symbols matched)")
-		}
 
 		return DeduplicateSlice(vulnerable)
 	}
