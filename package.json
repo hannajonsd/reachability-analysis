@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "lodash": "*",
+    "express": ""
+  }
+}

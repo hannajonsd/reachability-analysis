@@ -1,4 +1,3 @@
-// parser/go.go - Go language parser using Tree-sitter
 package parser
 
 import (
