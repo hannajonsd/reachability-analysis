@@ -1,4 +1,3 @@
-// parser/javascript.go - Proper Tree-sitter implementation (NO REGEX)
 package parser
 
 import (
@@ -12,6 +11,7 @@ type JavaScriptParser struct {
 	BaseParser
 }
 
+// NewJavaScriptParser creates a new JavaScript language parser using tree-sitter
 func NewJavaScriptParser() (*JavaScriptParser, error) {
 	parser := sitter.NewParser()
 	language := javascript.GetLanguage()
@@ -29,10 +29,12 @@ func NewJavaScriptParser() (*JavaScriptParser, error) {
 func (p *JavaScriptParser) Close() {
 }
 
+// ParseFile parses a JavaScript source file and returns the parse result
 func (p *JavaScriptParser) ParseFile(filePath string) (*ParseResult, error) {
 	return p.ParseFileGeneric(filePath)
 }
 
+// ExtractImports finds all import statements and require calls in a JavaScript AST
 func (p *JavaScriptParser) ExtractImports(node *sitter.Node, source []byte) ([]PackageImport, error) {
 	var imports []PackageImport
 
@@ -54,6 +56,7 @@ func (p *JavaScriptParser) ExtractImports(node *sitter.Node, source []byte) ([]P
 	return DeduplicateImports(imports), nil
 }
 
+// processImportStatement handles ES6 import statements (import ... from "module")
 func (p *JavaScriptParser) processImportStatement(node *sitter.Node, source []byte) *PackageImport {
 	var packageName, alias string
 	var symbols []string
@@ -98,6 +101,7 @@ func (p *JavaScriptParser) processImportStatement(node *sitter.Node, source []by
 	return nil
 }
 
+// processImportClause handles different types of import clauses (default, namespace, named)
 func (p *JavaScriptParser) processImportClause(node *sitter.Node, source []byte) (string, []string) {
 	for i := 0; i < int(node.ChildCount()); i++ {
 		child := node.Child(i)
@@ -117,6 +121,7 @@ func (p *JavaScriptParser) processImportClause(node *sitter.Node, source []byte)
 	return "", nil
 }
 
+// processNamespaceImport handles namespace imports (import * as alias from "module")
 func (p *JavaScriptParser) processNamespaceImport(node *sitter.Node, source []byte) string {
 	for i := 0; i < int(node.ChildCount()); i++ {
 		child := node.Child(i)
@@ -127,6 +132,7 @@ func (p *JavaScriptParser) processNamespaceImport(node *sitter.Node, source []by
 	return ""
 }
 
+// processNamedImports handles named imports (import { a, b, c } from "module")
 func (p *JavaScriptParser) processNamedImports(node *sitter.Node, source []byte) []string {
 	var symbols []string
 
@@ -145,6 +151,7 @@ func (p *JavaScriptParser) processNamedImports(node *sitter.Node, source []byte)
 	return symbols
 }
 
+// processImportSpecifier handles individual named import specifiers with potential aliases
 func (p *JavaScriptParser) processImportSpecifier(node *sitter.Node, source []byte) string {
 	var name, alias string
 
@@ -165,6 +172,7 @@ func (p *JavaScriptParser) processImportSpecifier(node *sitter.Node, source []by
 	return name
 }
 
+// processVariableDeclarator handles CommonJS require statements (const x = require("module"))
 func (p *JavaScriptParser) processVariableDeclarator(node *sitter.Node, source []byte) *PackageImport {
 	var alias, packageName string
 	var symbols []string
@@ -214,6 +222,7 @@ func (p *JavaScriptParser) processVariableDeclarator(node *sitter.Node, source [
 	return nil
 }
 
+// processObjectPattern handles destructuring in require statements (const { a, b } = require("module"))
 func (p *JavaScriptParser) processObjectPattern(node *sitter.Node, source []byte) []string {
 	var symbols []string
 
@@ -235,6 +244,7 @@ func (p *JavaScriptParser) processObjectPattern(node *sitter.Node, source []byte
 	return symbols
 }
 
+// processPair handles aliased destructuring (const { original: alias } = require("module"))
 func (p *JavaScriptParser) processPair(node *sitter.Node, source []byte) string {
 	var alias string
 
@@ -249,6 +259,7 @@ func (p *JavaScriptParser) processPair(node *sitter.Node, source []byte) string 
 	return alias
 }
 
+// processCallExpression identifies require() calls and extracts the module name
 func (p *JavaScriptParser) processCallExpression(node *sitter.Node, source []byte) (string, bool) {
 	var functionName, packageName string
 
@@ -267,6 +278,7 @@ func (p *JavaScriptParser) processCallExpression(node *sitter.Node, source []byt
 	return packageName, isRequire
 }
 
+// processArguments extracts string arguments from function calls
 func (p *JavaScriptParser) processArguments(node *sitter.Node, source []byte) string {
 	for i := 0; i < int(node.ChildCount()); i++ {
 		child := node.Child(i)
@@ -277,6 +289,7 @@ func (p *JavaScriptParser) processArguments(node *sitter.Node, source []byte) st
 	return ""
 }
 
+// ExtractCalls finds all function and method calls in a JavaScript AST
 func (p *JavaScriptParser) ExtractCalls(node *sitter.Node, source []byte) ([]string, error) {
 	var calls []string
 
@@ -292,6 +305,7 @@ func (p *JavaScriptParser) ExtractCalls(node *sitter.Node, source []byte) ([]str
 	return DeduplicateStrings(calls), nil
 }
 
+// processCall extracts function name from call expressions
 func (p *JavaScriptParser) processCall(node *sitter.Node, source []byte) string {
 	for i := 0; i < int(node.ChildCount()); i++ {
 		child := node.Child(i)
@@ -309,6 +323,7 @@ func (p *JavaScriptParser) processCall(node *sitter.Node, source []byte) string 
 	return ""
 }
 
+// processAttribute handles method calls and property access expressions
 func (p *JavaScriptParser) processAttribute(node *sitter.Node, source []byte) string {
 	// Extract object.attribute
 	var object, attribute string

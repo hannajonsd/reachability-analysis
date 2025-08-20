@@ -18,12 +18,14 @@ type VulnerabilityAnalyzer struct {
 	treeSitterAnalyzer *reachability.TreeSitterAnalyzer
 }
 
+// SimpleDependency represents a package dependency with basic information
 type SimpleDependency struct {
 	Name      string
 	Version   string
 	Ecosystem string
 }
 
+// DiscoveredDependency represents a dependency found in source code with metadata
 type DiscoveredDependency struct {
 	Name            string
 	Version         string
@@ -33,6 +35,7 @@ type DiscoveredDependency struct {
 	ManifestVersion string
 }
 
+// FileVulnerability represents vulnerabilities found in a specific file
 type FileVulnerability struct {
 	FilePath        string
 	PackageName     string
@@ -41,6 +44,7 @@ type FileVulnerability struct {
 	Advisories      []AdvisoryDetail
 }
 
+// AdvisoryDetail represents a security advisory with reachability information
 type AdvisoryDetail struct {
 	ID                string
 	Summary           string
@@ -49,11 +53,13 @@ type AdvisoryDetail struct {
 	VulnerableFiles   []VulnerableFile
 }
 
+// VulnerableFile represents a file with specific vulnerable function calls
 type VulnerableFile struct {
 	FilePath        string
 	VulnerableCalls []string
 }
 
+// VulnerabilityAnalyzerFunc creates a new vulnerability analyzer instance
 func VulnerabilityAnalyzerFunc() *VulnerabilityAnalyzer {
 	return &VulnerabilityAnalyzer{
 		treeSitterAnalyzer: reachability.NewTreeSitterAnalyzer(),
@@ -75,6 +81,7 @@ func main() {
 	}
 }
 
+// AnalyzeRepository performs comprehensive vulnerability analysis on a repository
 func (va *VulnerabilityAnalyzer) AnalyzeRepository(repoPath string, verbose bool) error {
 	fmt.Printf("Analyzing repository: %s\n", repoPath)
 
@@ -141,9 +148,11 @@ func (va *VulnerabilityAnalyzer) AnalyzeRepository(repoPath string, verbose bool
 	return nil
 }
 
+// DiscoverDependencies finds all external dependencies used in source files
 func (va *VulnerabilityAnalyzer) DiscoverDependencies(sourceFiles []string, rootDir string) ([]DiscoveredDependency, error) {
 	codeImports := make(map[string][]string)
 
+	// Extract imports from all source files
 	for _, filePath := range sourceFiles {
 		imports, err := va.extractImportsFromFile(filePath)
 		if err != nil {
@@ -160,12 +169,14 @@ func (va *VulnerabilityAnalyzer) DiscoverDependencies(sourceFiles []string, root
 
 	lookup := version_lookup.SimpleVersionLookupFunc()
 
+	// Detect ecosystems for each package
 	packageEcosystems := make(map[string]string)
 	for packageName, files := range codeImports {
 		ecosystem := va.detectEcosystem(files[0])
 		packageEcosystems[packageName] = ecosystem
 	}
 
+	// Look up versions from manifest files
 	versions := lookup.GetAllVersions(rootDir, packageEcosystems)
 
 	var discovered []DiscoveredDependency
@@ -188,9 +199,11 @@ func (va *VulnerabilityAnalyzer) DiscoverDependencies(sourceFiles []string, root
 	return discovered, nil
 }
 
+// analyzeDependencyByFile analyzes a specific dependency for vulnerabilities across all files
 func (va *VulnerabilityAnalyzer) analyzeDependencyByFile(dep SimpleDependency, sourceFiles []string, verbose bool) (int, []FileVulnerability, error) {
 	queryVersion := dep.Version
 
+	// Handle unknown or imprecise version specifications
 	isUnknownVersion := queryVersion == "" || queryVersion == "*" || queryVersion == "latest" || strings.Contains(queryVersion, "^") || strings.Contains(queryVersion, "~")
 	if isUnknownVersion {
 		if verbose {
@@ -219,11 +232,13 @@ func (va *VulnerabilityAnalyzer) analyzeDependencyByFile(dep SimpleDependency, s
 		}
 	}
 
+	// Process each security advisory
 	for i, adv := range advisories {
 		if verbose {
 			fmt.Printf("  Advisory %d: %s\n", i+1, adv.ID)
 		}
 
+		// Extract vulnerable symbols from OSV data
 		var allOSVSymbols []string
 		for _, affected := range adv.Affected {
 			for _, imp := range affected.EcosystemSpecific.Imports {
@@ -231,10 +246,12 @@ func (va *VulnerabilityAnalyzer) analyzeDependencyByFile(dep SimpleDependency, s
 			}
 		}
 
+		// Extract additional symbols from advisory text
 		extractedSymbols := osv.ExtractPossibleSymbols(dep.Name, adv.Summary, adv.Details)
 		allOSVSymbols = append(allOSVSymbols, extractedSymbols...)
 		uniqueOSVSymbols := reachability.DeduplicateSlice(allOSVSymbols)
 
+		// Check each source file for vulnerable calls
 		for _, filePath := range sourceFiles {
 			result, err := va.treeSitterAnalyzer.AnalyzeFileForVulnerabilities(filePath, dep.Name, uniqueOSVSymbols)
 			if err != nil {
@@ -281,6 +298,7 @@ func (va *VulnerabilityAnalyzer) analyzeDependencyByFile(dep SimpleDependency, s
 		}
 	}
 
+	// Deduplicate calls and convert to slice
 	for _, fileVuln := range fileVulnMap {
 		fileVuln.VulnerableCalls = reachability.DeduplicateSlice(fileVuln.VulnerableCalls)
 		fileVulnerabilities = append(fileVulnerabilities, *fileVuln)
@@ -289,6 +307,7 @@ func (va *VulnerabilityAnalyzer) analyzeDependencyByFile(dep SimpleDependency, s
 	return len(advisories), fileVulnerabilities, nil
 }
 
+// displayResults shows the final analysis results in a formatted output
 func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][]FileVulnerability, discoveredDeps []DiscoveredDependency, sourceFiles []string, vulnerablePackages, totalVulnerabilities int) {
 	if len(fileVulnerabilities) == 0 {
 		if len(sourceFiles) == 0 {
@@ -303,6 +322,7 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 		for filePath, vulns := range fileVulnerabilities {
 			fmt.Printf(" %s\n", filePath)
 
+			// Group vulnerabilities by package
 			packageVulns := make(map[string][]FileVulnerability)
 			for _, vuln := range vulns {
 				var key string
@@ -387,6 +407,7 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 
 }
 
+// displayDependencies shows discovered dependencies organized by manifest status
 func (va *VulnerabilityAnalyzer) displayDependencies(deps []DiscoveredDependency) {
 	manifestDeps := []DiscoveredDependency{}
 	codeOnlyDeps := []DiscoveredDependency{}
@@ -417,6 +438,7 @@ func (va *VulnerabilityAnalyzer) displayDependencies(deps []DiscoveredDependency
 	}
 }
 
+// findSourceFiles recursively finds all supported source code files in the repository
 func (va *VulnerabilityAnalyzer) findSourceFiles(repoPath string) ([]string, error) {
 	var sourceFiles []string
 
@@ -425,6 +447,7 @@ func (va *VulnerabilityAnalyzer) findSourceFiles(repoPath string) ([]string, err
 			return err
 		}
 
+		// Skip common build/dependency directories
 		if info.IsDir() && path != "." && (strings.HasPrefix(info.Name(), ".") ||
 			info.Name() == "node_modules" ||
 			info.Name() == "__pycache__" ||
@@ -447,6 +470,7 @@ func (va *VulnerabilityAnalyzer) findSourceFiles(repoPath string) ([]string, err
 	return sourceFiles, err
 }
 
+// extractImportsFromFile extracts all import statements from a source file
 func (va *VulnerabilityAnalyzer) extractImportsFromFile(filePath string) ([]string, error) {
 	fileParser, err := parser.CreateParser(filePath)
 	if err != nil {
@@ -473,6 +497,7 @@ func (va *VulnerabilityAnalyzer) extractImportsFromFile(filePath string) ([]stri
 	return reachability.DeduplicateSlice(packageNames), nil
 }
 
+// detectEcosystem determines the package ecosystem based on file extension
 func (va *VulnerabilityAnalyzer) detectEcosystem(sampleFile string) string {
 	ext := filepath.Ext(sampleFile)
 
@@ -488,6 +513,7 @@ func (va *VulnerabilityAnalyzer) detectEcosystem(sampleFile string) string {
 	}
 }
 
+// normalizeImportName converts raw import paths to normalized package names
 func (va *VulnerabilityAnalyzer) normalizeImportName(importPath string, filePath string) string {
 	ext := filepath.Ext(filePath)
 
@@ -503,20 +529,26 @@ func (va *VulnerabilityAnalyzer) normalizeImportName(importPath string, filePath
 	}
 }
 
+// normalizeJSImport converts JavaScript import paths to package names
 func (va *VulnerabilityAnalyzer) normalizeJSImport(importPath string) string {
+	// Skip relative imports
 	if strings.HasPrefix(importPath, ".") || strings.HasPrefix(importPath, "/") {
 		return ""
 	}
 
+	// Scoped packages start with @
 	if strings.HasPrefix(importPath, "@") {
 		return importPath
 	}
 
+	// Extract base package name from path
 	parts := strings.Split(importPath, "/")
 	return parts[0]
 }
 
+// normalizePythonImport filters out standard library imports and normalizes package names
 func (va *VulnerabilityAnalyzer) normalizePythonImport(importPath string) string {
+	// Python standard library modules
 	stdlib := []string{"os", "sys", "json", "re", "time", "datetime", "collections", "itertools", "functools", "operator", "pathlib", "urllib", "http", "email", "html", "xml", "csv", "sqlite3", "threading", "multiprocessing", "subprocess", "shutil", "glob", "pickle", "base64", "hashlib", "hmac", "secrets", "ssl", "socket", "logging", "unittest", "argparse", "configparser", "io", "math", "random", "statistics", "decimal", "fractions", "enum", "types", "copy", "pprint", "textwrap", "string", "bytes", "bytearray", "memoryview", "array"}
 
 	for _, std := range stdlib {
@@ -525,19 +557,24 @@ func (va *VulnerabilityAnalyzer) normalizePythonImport(importPath string) string
 		}
 	}
 
+	// Extract top-level package name
 	parts := strings.Split(importPath, ".")
 	return parts[0]
 }
 
+// normalizeGoImport normalizes Go import paths to package identifiers
 func (va *VulnerabilityAnalyzer) normalizeGoImport(importPath string) string {
+	// Skip standard library (no dots in path)
 	if !strings.Contains(importPath, ".") {
 		return ""
 	}
 
+	// Skip internal project imports
 	if strings.Contains(importPath, "github.com/hannajonsd/reachability-analysis") {
 		return ""
 	}
 
+	// Handle golang.org/x/ packages
 	if strings.HasPrefix(importPath, "golang.org/x/") {
 		parts := strings.Split(importPath, "/")
 		if len(parts) >= 3 {
@@ -545,15 +582,16 @@ func (va *VulnerabilityAnalyzer) normalizeGoImport(importPath string) string {
 		}
 	}
 
+	// Handle GitHub packages
 	if strings.HasPrefix(importPath, "github.com/") {
 		parts := strings.Split(importPath, "/")
 		if len(parts) >= 3 {
 			basePackage := strings.Join(parts[:3], "/")
-
 			return basePackage
 		}
 	}
 
+	// Handle other packages
 	parts := strings.Split(importPath, "/")
 	if len(parts) >= 2 {
 		if strings.Contains(parts[0], ".") {

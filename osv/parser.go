@@ -9,6 +9,7 @@ var functionPattern = regexp.MustCompile(`\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)`)
 var backtickPattern = regexp.MustCompile("`([a-zA-Z_][a-zA-Z0-9_]*)`")
 var funcWordPattern = regexp.MustCompile(`(?i)\b([a-zA-Z_][a-zA-Z0-9_]*)\b\s+function`)
 
+// ExtractMentionedSymbols finds function names and identifiers from text using regex patterns
 func ExtractMentionedSymbols(text string) []string {
 	funcMatches := functionPattern.FindAllString(text, -1)
 	tickMatches := backtickPattern.FindAllStringSubmatch(text, -1)
@@ -16,7 +17,7 @@ func ExtractMentionedSymbols(text string) []string {
 
 	unique := make(map[string]struct{})
 	for _, match := range funcMatches {
-		symbol := match[:len(match)-2]
+		symbol := match[:len(match)-2] // Remove "()" suffix
 		unique[symbol] = struct{}{}
 	}
 
@@ -41,6 +42,7 @@ func ExtractMentionedSymbols(text string) []string {
 	return results
 }
 
+// isValidSymbol filters out symbols containing common domain names and file extensions
 func isValidSymbol(symbol string) bool {
 	domains := []string{"github.com", ".com", ".io", ".rs", ".md", ".png", ".aarch64", ".x86_64", "e.g"}
 	for _, domain := range domains {
@@ -51,6 +53,7 @@ func isValidSymbol(symbol string) bool {
 	return true
 }
 
+// isSymbolLike filters out URLs, file names, and other non-symbol-like strings
 func isSymbolLike(s string) bool {
 	blockedKeywords := []string{
 		".com", ".org", ".rs", ".io", ".md", ".txt", ".png", ".html", ".exe", ".zip", ".cr",
@@ -67,6 +70,7 @@ func isSymbolLike(s string) bool {
 	return true
 }
 
+// ExtractPossibleSymbols extracts valid function/variable symbols from vulnerability text, excluding the package name itself
 func ExtractPossibleSymbols(name, summary, details string) []string {
 	text := summary + " " + details
 
@@ -79,6 +83,7 @@ func ExtractPossibleSymbols(name, summary, details string) []string {
 		}
 	}
 
+	// Remove the package name from results
 	for i, match := range validMatches {
 		if match == name {
 			validMatches = append(validMatches[:i], validMatches[i+1:]...)

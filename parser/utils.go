@@ -1,4 +1,3 @@
-// parser/factory.go - Updated
 package parser
 
 import (
@@ -11,6 +10,7 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
+// CreateParser creates the appropriate parser based on file extension
 func CreateParser(filePath string) (Parser, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 
@@ -26,6 +26,7 @@ func CreateParser(filePath string) (Parser, error) {
 	}
 }
 
+// DeduplicateImports removes duplicate imports based on package name, alias, and import type
 func DeduplicateImports(imports []PackageImport) []PackageImport {
 	seen := make(map[string]bool)
 	var result []PackageImport
@@ -41,6 +42,7 @@ func DeduplicateImports(imports []PackageImport) []PackageImport {
 	return result
 }
 
+// DeduplicateStrings removes duplicate strings from a slice
 func DeduplicateStrings(strs []string) []string {
 	seen := make(map[string]bool)
 	var result []string
@@ -55,14 +57,16 @@ func DeduplicateStrings(strs []string) []string {
 	return result
 }
 
+// ExtractStringValue removes quotes from string literals in AST nodes
 func ExtractStringValue(node *sitter.Node, source []byte) string {
 	text := string(source[node.StartByte():node.EndByte()])
 	if len(text) >= 2 && (text[0] == '"' || text[0] == '\'') {
-		text = text[1 : len(text)-1]
+		text = text[1 : len(text)-1] // Remove surrounding quotes
 	}
 	return text
 }
 
+// WalkAST recursively traverses an AST and applies a visitor function to each node
 func WalkAST(node *sitter.Node, source []byte, visitor func(*sitter.Node)) {
 	visitor(node)
 
@@ -72,6 +76,7 @@ func WalkAST(node *sitter.Node, source []byte, visitor func(*sitter.Node)) {
 	}
 }
 
+// ParseFileGeneric provides common file parsing functionality for all language parsers
 func (bp *BaseParser) ParseFileGeneric(filePath string) (*ParseResult, error) {
 	source, err := os.ReadFile(filePath)
 	if err != nil {
@@ -94,6 +99,7 @@ func (bp *BaseParser) ParseFileGeneric(filePath string) (*ParseResult, error) {
 	}, nil
 }
 
+// GetLanguage returns the language name for this parser
 func (bp *BaseParser) GetLanguage() string {
 	return bp.langName
 }
