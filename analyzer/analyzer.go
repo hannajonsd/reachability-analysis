@@ -3,7 +3,6 @@ package analyzer
 import (
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -89,42 +88,6 @@ func (va *VulnerabilityAnalyzer) AnalyzeRepository(repoPath string, verbose bool
 	va.displayResults(fileVulnerabilities, discoveredDeps, sourceFiles, vulnerablePackages, totalVulnerabilities)
 
 	return vulnerablePackages, nil
-}
-
-// findSourceFiles recursively finds all supported source code files
-func (va *VulnerabilityAnalyzer) findSourceFiles(repoPath string) ([]string, error) {
-	var sourceFiles []string
-
-	err := filepath.Walk(repoPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip common build/dependency directories
-		if info.IsDir() && path != "." && (strings.HasPrefix(info.Name(), ".") ||
-			info.Name() == "node_modules" ||
-			info.Name() == "__pycache__" ||
-			info.Name() == "vendor" ||
-			info.Name() == "build" ||
-			info.Name() == "dist" ||
-			info.Name() == "venv" ||
-			info.Name() == "env" ||
-			info.Name() == ".venv" ||
-			strings.HasSuffix(info.Name(), ".egg-info")) {
-			return filepath.SkipDir
-		}
-
-		if !info.IsDir() {
-			ext := filepath.Ext(path)
-			if ext == ".js" || ext == ".py" || ext == ".go" {
-				sourceFiles = append(sourceFiles, path)
-			}
-		}
-
-		return nil
-	})
-
-	return sourceFiles, err
 }
 
 // extractImportsFromFile extracts import statements from a source file

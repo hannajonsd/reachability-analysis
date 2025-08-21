@@ -16,26 +16,44 @@ A CLI tool that identifies known vulnerabilities in third-party dependencies and
 ## Installation
 
 ```bash
+# Clone the repository (outside of projects you want to scan)
 git clone https://github.com/hannajonsd/reachability-analysis
 cd reachability-analysis
 go build -o vulnerability-scanner
+
+# Install globally (recommended)
+sudo mv vulnerability-scanner /usr/local/bin/
+# Or install to user directory
+mkdir -p ~/bin
+mv vulnerability-scanner ~/bin/
+# Add ~/bin to PATH: 
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
 ```
 
 ## Usage
 
 ### Basic scan
 ```bash
-./vulnerability-scanner --path /path/to/project
+# Navigate to your project
+cd /path/to/your/project
+vulnerability-scanner .
 ```
 
 ### Verbose output
 ```bash
-./vulnerability-scanner --path /path/to/project --verbose
+vulnerability-scanner /path/to/your/project -verbose
 ```
 
 ### Scan current directory
 ```bash
-./vulnerability-scanner
+# From within your project directory
+vulnerability-scanner
+```
+
+## If not installed globally, copy scanner to your project
+```bash
+cp /path/to/reachability-analysis/vulnerability-scanner ./
+./vulnerability-scanner .
 ```
 
 ## Example Output
