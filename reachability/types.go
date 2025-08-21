@@ -2,6 +2,7 @@ package reachability
 
 import "github.com/hannajonsd/reachability-analysis/parser"
 
+// PackageImport represents an imported package with its alias and symbols
 type PackageImport struct {
 	PackageName string   // "lodash", "react", etc.
 	Alias       string   // "lod", "_", "React", etc.
@@ -9,6 +10,7 @@ type PackageImport struct {
 	Symbols     []string // For destructured imports: ["forEach", "map"]
 }
 
+// AnalysisResult contains the basic vulnerability analysis results for a file
 type AnalysisResult struct {
 	Imports         []PackageImport
 	FunctionCalls   []string
@@ -16,16 +18,10 @@ type AnalysisResult struct {
 	PackageAliases  []string
 }
 
+// EnhancedAnalysisResult extends basic analysis with detailed parser information
 type EnhancedAnalysisResult struct {
 	Basic           AnalysisResult
 	ImportDetails   []parser.PackageImport
 	Language        string
 	ParseSuccessful bool
-}
-
-type CallDetail struct {
-	FunctionCall string
-	Line         int
-	Column       int
-	Context      string
 }

@@ -11,12 +11,14 @@ type TreeSitterAnalyzer struct {
 	useTreeSitter bool
 }
 
+// NewTreeSitterAnalyzer creates a new analyzer that uses tree-sitter for code parsing
 func NewTreeSitterAnalyzer() *TreeSitterAnalyzer {
 	return &TreeSitterAnalyzer{
 		useTreeSitter: true,
 	}
 }
 
+// AnalyzeFileForVulnerabilities analyzes a source file to find calls to vulnerable functions
 func (a *TreeSitterAnalyzer) AnalyzeFileForVulnerabilities(filePath string, targetPackage string, osvSymbols []string) (EnhancedAnalysisResult, error) {
 	fileParser, err := parser.CreateParser(filePath)
 	if err != nil {
@@ -55,9 +57,11 @@ func (a *TreeSitterAnalyzer) AnalyzeFileForVulnerabilities(filePath string, targ
 	}, nil
 }
 
+// findVulnerableCalls identifies function calls that may be vulnerable based on imports and OSV symbols
 func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []parser.PackageImport, calls []string, targetPackage string) []string {
 	var vulnerable []string
 
+	// Create lookup map for OSV symbols if provided
 	var osvMap map[string]bool
 	if len(osvSymbols) > 0 {
 		osvMap = make(map[string]bool)
@@ -66,10 +70,12 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 		}
 	}
 
-	packageAliases := make(map[string]bool)
-	destructuredMethods := make(map[string]bool)
-	dotImportPackages := make(map[string]bool)
+	// Track different import patterns for the target package
+	packageAliases := make(map[string]bool)      // import pkg as alias
+	destructuredMethods := make(map[string]bool) // from pkg import method
+	dotImportPackages := make(map[string]bool)   // import . "pkg" (Go only)
 
+	// Categorize imports based on how they bring in the target package
 	for _, imp := range imports {
 		if strings.EqualFold(imp.PackageName, targetPackage) || strings.HasPrefix(strings.ToLower(imp.PackageName), strings.ToLower(targetPackage)+"/") || strings.HasPrefix(strings.ToLower(imp.PackageName), strings.ToLower(targetPackage)+".") {
 			if imp.ImportType == "destructured" || imp.ImportType == "from_import" || imp.ImportType == "from_import_as" {
@@ -82,10 +88,12 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 		}
 	}
 
+	// Check each function call for vulnerability
 	for _, call := range calls {
 		isVulnerable := false
 
 		if strings.Contains(call, ".") {
+			// Method calls: object.method()
 			parts := strings.Split(call, ".")
 			if len(parts) >= 2 {
 				object := parts[0]
@@ -102,8 +110,10 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 				}
 			}
 		} else {
+			// Direct function calls: method()
 			callLower := strings.ToLower(call)
 
+			// Check destructured imports
 			if destructuredMethods[callLower] {
 				if osvMap != nil {
 					if osvMap[callLower] {
@@ -114,6 +124,7 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 				}
 			}
 
+			// Check dot imports (Go style)
 			if dotImportPackages[targetPackage] {
 				if osvMap != nil {
 					if osvMap[callLower] {
@@ -130,9 +141,9 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 		}
 	}
 
+	// Fallback: if no specific OSV symbols found, try broader analysis
 	if osvMap != nil && len(vulnerable) == 0 {
 		vulnerable = a.findVulnerableCalls(nil, imports, calls, targetPackage)
-
 		return DeduplicateSlice(vulnerable)
 	}
 

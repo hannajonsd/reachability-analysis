@@ -8,6 +8,7 @@ import (
 	"net/http"
 )
 
+// QueryOSV queries the OSV API for vulnerabilities in a specific package version
 func QueryOSV(pkgName string, version string, ecosystem string) ([]Advisory, error) {
 	req := OSVRequest{}
 	req.Package.Name = pkgName
