@@ -40,3 +40,10 @@ type VulnerableFile struct {
 	FilePath        string
 	VulnerableCalls []string
 }
+
+// GitignoreParser handles parsing and matching .gitignore patterns
+type GitignoreParser struct {
+	ignorePatterns   []string
+	negationPatterns []string
+	rootDir          string
+}

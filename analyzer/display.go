@@ -39,6 +39,8 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 				allCalls := []string{}
 				hasUnknownVersion := false
 				isCodeOnly := false
+				isSemverRange := false
+				originalVersion := ""
 
 				for _, vuln := range packageVulnList {
 					advisoryCount += len(vuln.Advisories)
@@ -51,27 +53,32 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 					}
 
 					for _, discDep := range discoveredDeps {
-						if discDep.Name == vuln.PackageName && !discDep.IsInManifest {
-							isCodeOnly = true
+						if discDep.Name == vuln.PackageName {
+							if !discDep.IsInManifest {
+								isCodeOnly = true
+							} else {
+								originalVersion = discDep.ManifestVersion
+								isSemverRange = va.isSemverRange(originalVersion)
+							}
 						}
 					}
 				}
 
 				uniqueCalls := reachability.DeduplicateSlice(allCalls)
 
-				if hasUnknownVersion || isCodeOnly {
-					fmt.Printf("    %s (%d potential advisories used in code", packageKey, advisoryCount)
-					if isCodeOnly {
-						fmt.Printf(" - not in manifest")
+				if hasUnknownVersion || isCodeOnly || isSemverRange {
+					if isSemverRange {
+						fmt.Printf("    %s@%s (%d potential advisories used in code - semver range)\n",
+							packageVulnList[0].PackageName, originalVersion, advisoryCount)
+						fmt.Printf("       Checking all versions for a comprehensive analysis\n")
+					} else if isCodeOnly {
+						fmt.Printf("    %s (%d potential advisories used in code - not in manifest)\n",
+							packageKey, advisoryCount)
+						fmt.Printf("       Add to manifest file for precise analysis\n")
 					} else {
-						fmt.Printf(" - unknown version")
-					}
-					fmt.Printf(")\n")
-					fmt.Printf("       ")
-					if isCodeOnly {
-						fmt.Printf("Add to manifest file for precise analysis\n")
-					} else {
-						fmt.Printf("Specify exact version for precise analysis\n")
+						fmt.Printf("    %s (%d potential advisories used in code - unknown version)\n",
+							packageKey, advisoryCount)
+						fmt.Printf("       Specify exact version for precise analysis\n")
 					}
 				} else {
 					uniqueFunctionCount := len(uniqueCalls)
@@ -93,12 +100,14 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 	manifestCount := 0
 	codeOnlyCount := 0
 	unknownVersionCount := 0
+	semverRangeCount := 0
 
 	for _, dep := range discoveredDeps {
 		if dep.IsInManifest {
-			if dep.Version == "" || dep.Version == "*" || dep.Version == "latest" ||
-				strings.Contains(dep.Version, "^") || strings.Contains(dep.Version, "~") {
+			if dep.Version == "" || dep.Version == "*" || dep.Version == "latest" {
 				unknownVersionCount++
+			} else if va.isSemverRange(dep.ManifestVersion) {
+				semverRangeCount++
 			} else {
 				manifestCount++
 			}
@@ -107,7 +116,8 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 		}
 	}
 
-	fmt.Printf("  - With versions (in manifests): %d\n", manifestCount)
+	fmt.Printf("  - With exact versions (in manifests): %d\n", manifestCount)
+	fmt.Printf("  - With semver ranges (in manifests): %d\n", semverRangeCount)
 	fmt.Printf("  - Unknown versions (in manifests): %d\n", unknownVersionCount)
 	fmt.Printf("  - Unknown versions (code-only): %d\n", codeOnlyCount)
 	fmt.Printf("Packages with vulnerabilities: %d\n", vulnerablePackages)
@@ -144,4 +154,21 @@ func (va *VulnerabilityAnalyzer) displayDependencies(deps []DiscoveredDependency
 			}
 		}
 	}
+}
+
+// isSemverRange checks if a version string represents a semver range
+func (va *VulnerabilityAnalyzer) isSemverRange(version string) bool {
+	if version == "" {
+		return false
+	}
+
+	semverRangeIndicators := []string{"^", "~", ">=", "<=", ">", "<", " - ", "||", ","}
+
+	for _, indicator := range semverRangeIndicators {
+		if strings.Contains(version, indicator) {
+			return true
+		}
+	}
+
+	return false
 }
