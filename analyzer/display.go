@@ -60,7 +60,7 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 				uniqueCalls := reachability.DeduplicateSlice(allCalls)
 
 				if hasUnknownVersion || isCodeOnly {
-					fmt.Printf("    %s (%d potential vulnerabilities", packageKey, advisoryCount)
+					fmt.Printf("    %s (%d potential advisories used in code", packageKey, advisoryCount)
 					if isCodeOnly {
 						fmt.Printf(" - not in manifest")
 					} else {
@@ -74,7 +74,8 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 						fmt.Printf("Specify exact version for precise analysis\n")
 					}
 				} else {
-					fmt.Printf("  ❌ %s (%d vulnerabilities)\n", packageKey, advisoryCount)
+					uniqueFunctionCount := len(uniqueCalls)
+					fmt.Printf("  ❌ %s (%d vulnerable functions)\n", packageKey, uniqueFunctionCount)
 				}
 
 				for _, call := range uniqueCalls {

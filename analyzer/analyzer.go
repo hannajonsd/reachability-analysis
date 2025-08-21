@@ -106,7 +106,11 @@ func (va *VulnerabilityAnalyzer) findSourceFiles(repoPath string) ([]string, err
 			info.Name() == "__pycache__" ||
 			info.Name() == "vendor" ||
 			info.Name() == "build" ||
-			info.Name() == "dist") {
+			info.Name() == "dist" ||
+			info.Name() == "venv" ||
+			info.Name() == "env" ||
+			info.Name() == ".venv" ||
+			strings.HasSuffix(info.Name(), ".egg-info")) {
 			return filepath.SkipDir
 		}
 
