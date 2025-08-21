@@ -19,14 +19,14 @@ func main() {
 	fmt.Println("=== Vulnerability Reachability Analysis ===")
 
 	vuln := analyzer.New()
-	vulnerablePackages, err := vuln.AnalyzeRepository(*repoPath, *verbose)
+	reachableVulnCount, err := vuln.AnalyzeRepository(*repoPath, *verbose)
 	if err != nil {
 		log.Fatalf("Analysis failed: %v", err)
 	}
 
-	if vulnerablePackages > 0 {
+	if reachableVulnCount > 0 {
 		os.Exit(1)
-	} else {
-		os.Exit(0)
 	}
+
+	os.Exit(0)
 }

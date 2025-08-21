@@ -145,11 +145,6 @@ Install the hook:
 pre-commit install
 ```
 
-Build the scanner:
-```bash
-go build -o vulnerability-scanner
-```
-
 Now every commit will be scanned for reachable vulnerabilities!
 
 ## Contributing
