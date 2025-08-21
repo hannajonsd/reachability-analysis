@@ -28,6 +28,22 @@ func (va *VulnerabilityAnalyzer) normalizeJSImport(importPath string) string {
 		return ""
 	}
 
+	// Filter out Node.js built-in modules
+	nodeBuiltins := []string{
+		"assert", "async_hooks", "buffer", "child_process", "cluster", "console",
+		"constants", "crypto", "dgram", "dns", "domain", "events", "fs", "http",
+		"http2", "https", "inspector", "module", "net", "os", "path", "perf_hooks",
+		"process", "punycode", "querystring", "readline", "repl", "stream",
+		"string_decoder", "timers", "tls", "trace_events", "tty", "url", "util",
+		"v8", "vm", "worker_threads", "zlib",
+	}
+
+	for _, builtin := range nodeBuiltins {
+		if importPath == builtin || strings.HasPrefix(importPath, builtin+"/") {
+			return ""
+		}
+	}
+
 	// Scoped packages start with @
 	if strings.HasPrefix(importPath, "@") {
 		return importPath
