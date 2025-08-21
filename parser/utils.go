@@ -15,7 +15,7 @@ func CreateParser(filePath string) (Parser, error) {
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	switch ext {
-	case ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx":
+	case ".js", ".jsx", ".mjs", ".cjs":
 		return NewJavaScriptParser()
 	case ".py":
 		return NewPythonParser()

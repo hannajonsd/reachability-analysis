@@ -133,7 +133,28 @@ func (s *SimpleVersionLookup) searchNpmVersion(content, packageName string) stri
 
 // searchGoVersion extracts module version from go.mod
 func (s *SimpleVersionLookup) searchGoVersion(content, packageName string) string {
-	pattern := fmt.Sprintf(`%s\s+([^\s]+)`, regexp.QuoteMeta(packageName))
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		if strings.HasPrefix(line, "//") || line == "" {
+			continue
+		}
+
+		if commentIndex := strings.Index(line, "//"); commentIndex != -1 {
+			line = strings.TrimSpace(line[:commentIndex])
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			if parts[0] == packageName {
+				return parts[1]
+			}
+		}
+	}
+
+	pattern := fmt.Sprintf(`^[\s]*%s\s+([^\s]+)`, regexp.QuoteMeta(packageName))
 	re := regexp.MustCompile(pattern)
 
 	if matches := re.FindStringSubmatch(content); len(matches) > 1 {
@@ -144,7 +165,7 @@ func (s *SimpleVersionLookup) searchGoVersion(content, packageName string) strin
 
 // searchPythonVersion extracts package version from requirements.txt
 func (s *SimpleVersionLookup) searchPythonVersion(content, packageName string) string {
-	pattern := fmt.Sprintf(`^%s\s*([>=<~!]+[^\s#]+)`, regexp.QuoteMeta(packageName))
+	pattern := fmt.Sprintf(`^%s\s*([>=<~!=]+\s*[^\s#]+)`, regexp.QuoteMeta(packageName))
 	re := regexp.MustCompile(pattern)
 
 	lines := strings.Split(content, "\n")
