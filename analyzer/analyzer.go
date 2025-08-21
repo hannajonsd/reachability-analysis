@@ -87,7 +87,7 @@ func (va *VulnerabilityAnalyzer) AnalyzeRepository(repoPath string, verbose bool
 
 	va.displayResults(fileVulnerabilities, discoveredDeps, sourceFiles, vulnerablePackages, totalVulnerabilities)
 
-	return vulnerablePackages, nil
+	return len(fileVulnerabilities), nil
 }
 
 // extractImportsFromFile extracts import statements from a source file
