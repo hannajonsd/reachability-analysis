@@ -8,16 +8,18 @@ import (
 var functionPattern = regexp.MustCompile(`\b[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)`)
 var backtickPattern = regexp.MustCompile("`([a-zA-Z_][a-zA-Z0-9_]*)`")
 var funcWordPattern = regexp.MustCompile(`(?i)\b([a-zA-Z_][a-zA-Z0-9_]*)\b\s+function`)
+var quotedPattern = regexp.MustCompile(`['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]`)
 
 // ExtractMentionedSymbols finds function names and identifiers from text using regex patterns
 func ExtractMentionedSymbols(text string) []string {
 	funcMatches := functionPattern.FindAllString(text, -1)
 	tickMatches := backtickPattern.FindAllStringSubmatch(text, -1)
 	funcWordMatches := funcWordPattern.FindAllStringSubmatch(text, -1)
+	quoteMatches := quotedPattern.FindAllStringSubmatch(text, -1)
 
 	unique := make(map[string]struct{})
 	for _, match := range funcMatches {
-		symbol := match[:len(match)-2] // Remove "()" suffix
+		symbol := match[:len(match)-2]
 		unique[symbol] = struct{}{}
 	}
 
@@ -33,9 +35,15 @@ func ExtractMentionedSymbols(text string) []string {
 		}
 	}
 
+	for _, match := range quoteMatches {
+		if len(match) > 1 {
+			unique[match[1]] = struct{}{}
+		}
+	}
+
 	var results []string
 	for s := range unique {
-		if isValidSymbol(s) && isSymbolLike(s) {
+		if isValidSymbol(s) && isSymbolLike(s) && !looksLikeGarbageSymbol(s) {
 			results = append(results, s)
 		}
 	}
