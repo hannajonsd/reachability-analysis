@@ -20,6 +20,9 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 		fmt.Printf("\nFound vulnerabilities in %d files:\n\n", len(fileVulnerabilities))
 
 		for filePath, vulns := range fileVulnerabilities {
+			if filePath == "" {
+				continue
+			}
 			fmt.Printf(" %s\n", filePath)
 
 			// Group vulnerabilities by package
@@ -41,10 +44,12 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 				isCodeOnly := false
 				isSemverRange := false
 				originalVersion := ""
+				symbollessCount := 0
 
 				for _, vuln := range packageVulnList {
 					advisoryCount += len(vuln.Advisories)
 					allCalls = append(allCalls, vuln.VulnerableCalls...)
+					symbollessCount += len(vuln.SymbollessAdvisories)
 
 					for _, advisory := range vuln.Advisories {
 						if strings.Contains(advisory.Summary, "[UNKNOWN VERSION]") {
@@ -67,26 +72,78 @@ func (va *VulnerabilityAnalyzer) displayResults(fileVulnerabilities map[string][
 				uniqueCalls := reachability.DeduplicateSlice(allCalls)
 
 				if hasUnknownVersion || isCodeOnly || isSemverRange {
-					if isSemverRange {
+					if symbollessCount > 0 {
+						fmt.Printf("    %s (%d reachable vulnerability + %d requires manual review)\n",
+							packageKey, len(uniqueCalls), symbollessCount)
+					} else if isSemverRange {
 						fmt.Printf("    %s@%s (%d potential advisories used in code - semver range)\n",
 							packageVulnList[0].PackageName, originalVersion, advisoryCount)
-						fmt.Printf("       Checking all versions for a comprehensive analysis\n")
 					} else if isCodeOnly {
 						fmt.Printf("    %s (%d potential advisories used in code - not in manifest)\n",
 							packageKey, advisoryCount)
-						fmt.Printf("       Add to manifest file for precise analysis\n")
 					} else {
 						fmt.Printf("    %s (%d potential advisories used in code - unknown version)\n",
 							packageKey, advisoryCount)
+					}
+
+					if symbollessCount == 0 {
 						fmt.Printf("       Specify exact version for precise analysis\n")
 					}
 				} else {
-					uniqueFunctionCount := len(uniqueCalls)
-					fmt.Printf("  ❌ %s (%d vulnerable functions)\n", packageKey, uniqueFunctionCount)
+					if symbollessCount > 0 {
+						fmt.Printf("  ❌ %s (%d vulnerable functions + %d requires manual review)\n",
+							packageKey, len(uniqueCalls), symbollessCount)
+					} else {
+						fmt.Printf("  ❌ %s (%d vulnerable functions)\n", packageKey, len(uniqueCalls))
+					}
 				}
 
+				// Display vulnerable calls with advisory IDs
 				for _, call := range uniqueCalls {
-					fmt.Printf("     - %s\n", call)
+					var advisoryID string
+					for _, vuln := range packageVulnList {
+						for _, advisory := range vuln.Advisories {
+							for _, vulnFile := range advisory.VulnerableFiles {
+								for _, vulnCall := range vulnFile.VulnerableCalls {
+									if vulnCall == call {
+										advisoryID = advisory.ID
+										break
+									}
+								}
+								if advisoryID != "" {
+									break
+								}
+							}
+							if advisoryID != "" {
+								break
+							}
+						}
+						if advisoryID != "" {
+							break
+						}
+					}
+
+					if advisoryID != "" {
+						fmt.Printf("     - %s (%s)\n", call, advisoryID)
+					} else {
+						fmt.Printf("     - %s\n", call)
+					}
+				}
+
+				// Display manual review section
+				if symbollessCount > 0 {
+					fmt.Println()
+					fmt.Println("Manual Review Required:")
+					seen := make(map[string]bool)
+					for _, vuln := range packageVulnList {
+						for _, symbolless := range vuln.SymbollessAdvisories {
+							if !seen[symbolless.ID] {
+								seen[symbolless.ID] = true
+								fmt.Printf("     - %s: \"%s\"\n", symbolless.ID, symbolless.Summary)
+								fmt.Printf("       https://osv.dev/vulnerability/%s\n", symbolless.ID)
+							}
+						}
+					}
 				}
 			}
 			fmt.Println()

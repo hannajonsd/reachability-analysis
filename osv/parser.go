@@ -78,7 +78,7 @@ func ExtractPossibleSymbols(name, summary, details string) []string {
 
 	var validMatches []string
 	for _, match := range allMatches {
-		if isValidSymbol(match) && isSymbolLike(match) {
+		if isValidSymbol(match) && isSymbolLike(match) && !looksLikeGarbageSymbol(match) {
 			validMatches = append(validMatches, match)
 		}
 	}
@@ -91,4 +91,22 @@ func ExtractPossibleSymbols(name, summary, details string) []string {
 		}
 	}
 	return validMatches
+}
+
+func looksLikeGarbageSymbol(s string) bool {
+	lower := strings.ToLower(s)
+
+	// obvious junk words
+	junk := []string{"true", "false", "none", "object", "the", "previous", "vulnerable"}
+	for _, j := range junk {
+		if lower == j {
+			return true
+		}
+	}
+
+	if strings.Contains(s, "_") && strings.ToLower(s) == s {
+		return true
+	}
+
+	return false
 }
