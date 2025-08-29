@@ -19,11 +19,18 @@ type DiscoveredDependency struct {
 
 // FileVulnerability represents vulnerabilities found in a specific file
 type FileVulnerability struct {
-	FilePath        string
-	PackageName     string
-	PackageVersion  string
-	VulnerableCalls []string
-	Advisories      []AdvisoryDetail
+	FilePath             string
+	PackageName          string
+	PackageVersion       string
+	VulnerableCalls      []string
+	Advisories           []AdvisoryDetail
+	SymbollessAdvisories []SymbollessAdvisory
+}
+
+// SymbollessAdvisory represents an advisory without specific symbols
+type SymbollessAdvisory struct {
+	ID      string
+	Summary string
 }
 
 // AdvisoryDetail represents a security advisory with reachability information

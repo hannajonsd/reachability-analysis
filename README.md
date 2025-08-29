@@ -70,7 +70,6 @@ Found vulnerabilities in 3 files:
        Specify exact version for precise analysis
      - lod.trim
      - lod.toNumber
-     - lod.forEach
 
  testdata/example.py
   ❌ requests@==2.30.0 (4 vulnerable functions)

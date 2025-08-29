@@ -104,8 +104,6 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 						if osvMap[methodName] {
 							isVulnerable = true
 						}
-					} else {
-						isVulnerable = true
 					}
 				}
 			}
@@ -130,8 +128,6 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 					if osvMap[callLower] {
 						isVulnerable = true
 					}
-				} else {
-					isVulnerable = true
 				}
 			}
 		}
@@ -139,12 +135,6 @@ func (a *TreeSitterAnalyzer) findVulnerableCalls(osvSymbols []string, imports []
 		if isVulnerable {
 			vulnerable = append(vulnerable, call)
 		}
-	}
-
-	// Fallback: if no specific OSV symbols found, try broader analysis
-	if osvMap != nil && len(vulnerable) == 0 {
-		vulnerable = a.findVulnerableCalls(nil, imports, calls, targetPackage)
-		return DeduplicateSlice(vulnerable)
 	}
 
 	return DeduplicateSlice(vulnerable)
