@@ -78,6 +78,14 @@ func (va *VulnerabilityAnalyzer) AnalyzeDependency(dep SimpleDependency, sourceF
 			allOSVSymbols = append(allOSVSymbols, extractedSymbols...)
 			uniqueOSVSymbols := reachability.DeduplicateSlice(allOSVSymbols)
 
+			if len(uniqueOSVSymbols) == 0 {
+				va.addManualReview(&allFileVulnerabilities, dep, adv)
+				if verbose {
+					fmt.Printf("      %s has no extractable symbols → manual review\n", adv.ID)
+				}
+				continue
+			}
+
 			// Check each source file for vulnerable calls
 			for _, filePath := range sourceFiles {
 				result, err := va.treeSitterAnalyzer.AnalyzeFileForVulnerabilities(filePath, modulePath, uniqueOSVSymbols)
@@ -119,6 +127,39 @@ func (va *VulnerabilityAnalyzer) AnalyzeDependency(dep SimpleDependency, sourceF
 	}
 
 	return totalAdvisories, allFileVulnerabilities, nil
+}
+
+// addManualReview attaches a warning to symbolless advisories
+func (va *VulnerabilityAnalyzer) addManualReview(
+	all *[]FileVulnerability,
+	dep SimpleDependency,
+	adv osv.Advisory,
+) {
+	sym := SymbollessAdvisory{
+		ID:      adv.ID,
+		Summary: strings.TrimSpace(adv.Summary),
+	}
+
+	var fv *FileVulnerability
+	for i := range *all {
+		if (*all)[i].PackageName == dep.Name {
+			fv = &(*all)[i]
+			break
+		}
+	}
+
+	if fv == nil {
+		newFV := va.findOrCreateFileVulnerability(all, "", dep)
+		fv = newFV
+	}
+
+	for _, existing := range fv.SymbollessAdvisories {
+		if strings.EqualFold(existing.ID, sym.ID) {
+			return
+		}
+	}
+
+	fv.SymbollessAdvisories = append(fv.SymbollessAdvisories, sym)
 }
 
 // getHierarchicalPaths returns appropriate hierarchical paths based on ecosystem

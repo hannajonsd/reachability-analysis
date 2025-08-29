@@ -165,14 +165,31 @@ func (s *SimpleVersionLookup) searchGoVersion(content, packageName string) strin
 
 // searchPythonVersion extracts package version from requirements.txt
 func (s *SimpleVersionLookup) searchPythonVersion(content, packageName string) string {
-	pattern := fmt.Sprintf(`^%s\s*([>=<~!=]+\s*[^\s#]+)`, regexp.QuoteMeta(packageName))
+	pattern := fmt.Sprintf(`(?i)^\s*%s\s*(\[[^\]]+\])?\s*([!<>=~]{1,3})\s*([^\s#;]+)`,
+		regexp.QuoteMeta(packageName))
 	re := regexp.MustCompile(pattern)
 
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if matches := re.FindStringSubmatch(line); len(matches) > 1 {
-			return matches[1]
+	for _, raw := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(raw)
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		if idx := strings.Index(line, ";"); idx != -1 {
+			line = strings.TrimSpace(line[:idx])
+		}
+		if idx := strings.Index(line, "#"); idx != -1 {
+			line = strings.TrimSpace(line[:idx])
+		}
+		m := re.FindStringSubmatch(line)
+		if len(m) == 4 {
+			op := strings.TrimSpace(m[2])
+			ver := strings.TrimSpace(m[3])
+			switch op {
+			case "==", "===", "=":
+				return ver
+			default:
+				return op + ver
+			}
 		}
 	}
 	return ""
