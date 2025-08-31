@@ -66,22 +66,27 @@ func (va *VulnerabilityAnalyzer) AnalyzeDependency(dep SimpleDependency, sourceF
 			}
 
 			// Extract vulnerable symbols from advisory
-			var allOSVSymbols []string
+			var structured []string
 			for _, affected := range adv.Affected {
 				for _, imp := range affected.EcosystemSpecific.Imports {
-					allOSVSymbols = append(allOSVSymbols, imp.Symbols...)
+					structured = append(structured, imp.Symbols...)
 				}
 			}
 
 			// Extract additional symbols from advisory text
 			extractedSymbols := osv.ExtractPossibleSymbols(modulePath, adv.Summary, adv.Details)
-			allOSVSymbols = append(allOSVSymbols, extractedSymbols...)
+
+			allOSVSymbols := append(append([]string{}, structured...), extractedSymbols...)
 			uniqueOSVSymbols := reachability.DeduplicateSlice(allOSVSymbols)
 
 			if len(uniqueOSVSymbols) == 0 {
-				va.addManualReview(&allFileVulnerabilities, dep, adv)
-				if verbose {
-					fmt.Printf("      %s has no extractable symbols → manual review\n", adv.ID)
+				for _, filePath := range sourceFiles {
+					if va.fileImportsPackage(filePath, dep.Name) {
+						fv := va.findOrCreateFileVulnerability(&allFileVulnerabilities, filePath, dep)
+						fv.SymbollessAdvisories = append(fv.SymbollessAdvisories, SymbollessAdvisory{
+							ID: adv.ID, Summary: strings.TrimSpace(adv.Summary),
+						})
+					}
 				}
 				continue
 			}
@@ -129,37 +134,23 @@ func (va *VulnerabilityAnalyzer) AnalyzeDependency(dep SimpleDependency, sourceF
 	return totalAdvisories, allFileVulnerabilities, nil
 }
 
-// addManualReview attaches a warning to symbolless advisories
-func (va *VulnerabilityAnalyzer) addManualReview(
-	all *[]FileVulnerability,
-	dep SimpleDependency,
-	adv osv.Advisory,
-) {
-	sym := SymbollessAdvisory{
-		ID:      adv.ID,
-		Summary: strings.TrimSpace(adv.Summary),
+// fileImportsPackage checks if a given file imports the target package
+func (va *VulnerabilityAnalyzer) fileImportsPackage(filePath, targetPackage string) bool {
+	imports, err := va.extractImportsFromFile(filePath)
+	if err != nil {
+		return false
 	}
 
-	var fv *FileVulnerability
-	for i := range *all {
-		if (*all)[i].PackageName == dep.Name {
-			fv = &(*all)[i]
-			break
+	for _, pkg := range imports {
+		if strings.EqualFold(pkg, targetPackage) {
+			return true
+		}
+
+		if strings.HasPrefix(strings.ToLower(pkg), strings.ToLower(targetPackage)+"/") {
+			return true
 		}
 	}
-
-	if fv == nil {
-		newFV := va.findOrCreateFileVulnerability(all, "", dep)
-		fv = newFV
-	}
-
-	for _, existing := range fv.SymbollessAdvisories {
-		if strings.EqualFold(existing.ID, sym.ID) {
-			return
-		}
-	}
-
-	fv.SymbollessAdvisories = append(fv.SymbollessAdvisories, sym)
+	return false
 }
 
 // getHierarchicalPaths returns appropriate hierarchical paths based on ecosystem
