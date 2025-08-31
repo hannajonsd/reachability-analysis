@@ -183,6 +183,8 @@ func (va *VulnerabilityAnalyzer) findSourceFiles(repoPath string) ([]string, err
 			info.Name() == "venv" ||
 			info.Name() == "env" ||
 			info.Name() == ".venv" ||
+			strings.Contains(path, "venv") ||
+			strings.Contains(path, "site-packages") ||
 			strings.HasSuffix(info.Name(), ".egg-info")) {
 			return filepath.SkipDir
 		}

@@ -148,13 +148,16 @@ func (s *SimpleVersionLookup) searchGoVersion(content, packageName string) strin
 
 		parts := strings.Fields(line)
 		if len(parts) >= 2 {
+			if parts[0] == "require" && len(parts) >= 3 && parts[1] == packageName {
+				return parts[2]
+			}
 			if parts[0] == packageName {
 				return parts[1]
 			}
 		}
 	}
 
-	pattern := fmt.Sprintf(`^[\s]*%s\s+([^\s]+)`, regexp.QuoteMeta(packageName))
+	pattern := fmt.Sprintf(`(?m)^\s*(?:require\s+)?%s\s+([^\s]+)`, regexp.QuoteMeta(packageName))
 	re := regexp.MustCompile(pattern)
 
 	if matches := re.FindStringSubmatch(content); len(matches) > 1 {
