@@ -85,7 +85,7 @@ func (va *VulnerabilityAnalyzer) AnalyzeRepository(repoPath string, verbose bool
 		}
 	}
 
-	va.displayResults(fileVulnerabilities, discoveredDeps, sourceFiles, vulnerablePackages, totalVulnerabilities)
+	va.displayResults(fileVulnerabilities, discoveredDeps, sourceFiles, vulnerablePackages)
 
 	return len(fileVulnerabilities), nil
 }
@@ -175,7 +175,7 @@ func (va *VulnerabilityAnalyzer) DiscoverDependencies(sourceFiles []string, root
 		dep := DiscoveredDependency{
 			Name:            packageName,
 			Ecosystem:       ecosystem,
-			FoundInFiles:    files,
+			FoundInFiles:    reachability.DeduplicateSlice(files),
 			Version:         version,
 			IsInManifest:    isInManifest,
 			ManifestVersion: version,

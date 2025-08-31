@@ -61,33 +61,51 @@ cp /path/to/reachability-analysis/vulnerability-scanner ./
 ```
 === Vulnerability Reachability Analysis ===
 Analyzing repository: .
-Found 21 source files for analysis
+Found 22 source files for analysis
 
-Found vulnerabilities in 3 files:
+------------------------------------------------------------
+VULNERABILITY ANALYSIS BY FILE
+
+External dependencies discovered: 3
+  - With exact versions (in manifests): 2
+  - With semver ranges (in manifests): 0
+  - Unknown versions (in manifests): 1
+  - Unknown versions (code-only): 0
+
+❌ Found vulnerabilities in 3 files, packages with vulnerabilities 3:
 
  testdata/example.js
-    lodash@unknown (7 potential advisories used in code - unknown version)
-       Specify exact version for precise analysis
-     - lod.trim
-     - lod.toNumber
+  lodash@unknown (2 reachable vulnerabilities + 1 requires manual review)
+   - lod.trim (GHSA-29mw-wpgm-hmr9)
+   - lod.toNumber (GHSA-29mw-wpgm-hmr9)
+
+  Advisories with no extracted symbols (package-wide):
+   - GHSA-x5rq-j2xg-h7qm: "Regular Expression Denial of Service (ReDoS) in lodash"
+     https://osv.dev/vulnerability/GHSA-x5rq-j2xg-h7qm
 
  testdata/example.py
-  ❌ requests@==2.30.0 (4 vulnerable functions)
-     - requests.get
-     - requests.post
-     - Session
-     - HTTPAdapter
+  requests@2.30.0 (1 vulnerable function + 3 require manual review)
+   - Session (GHSA-9wx4-h78v-vm56)
+
+  Advisories with no extracted symbols (package-wide):
+   - GHSA-9hjg-9r4m-mvj7: "Requests vulnerable to .netrc credentials leak via malicious URLs"
+     https://osv.dev/vulnerability/GHSA-9hjg-9r4m-mvj7
+   - GHSA-j8r2-6x86-q33q: "Unintended leak of Proxy-Authorization header in requests"
+     https://osv.dev/vulnerability/GHSA-j8r2-6x86-q33q
+   - PYSEC-2023-74: ""
+     https://osv.dev/vulnerability/PYSEC-2023-74
 
  testdata/example.go
-  ❌ golang.org/x/text/language@v0.3.7 (2 vulnerable functions)
-     - language.ParseAcceptLanguage
-     - language.MatchStrings
+  golang.org/x/text/language@v0.3.7 (2 vulnerable functions + 2 require manual review)
+   - language.ParseAcceptLanguage (GO-2021-0113)
+   - language.MatchStrings (GO-2021-0113)
 
-SUMMARY
-External dependencies discovered: 3
-Packages with vulnerabilities: 3
-Total vulnerability advisories: 13
-Files with reachable vulnerabilities: 3
+  Advisories with no extracted symbols (package-wide):
+   - GHSA-69ch-w2m2-3vjp: "golang.org/x/text/language Denial of service via crafted Accept-Language header"
+     https://osv.dev/vulnerability/GHSA-69ch-w2m2-3vjp
+   - GHSA-ppp9-7jff-5vj2: "golang.org/x/text/language Out-of-bounds Read vulnerability"
+     https://osv.dev/vulnerability/GHSA-ppp9-7jff-5vj2
+
 ```
 
 ## How It Works
